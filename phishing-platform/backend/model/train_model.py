@@ -244,10 +244,11 @@ def train_model():
     print("\n─── CLASSIFICATION REPORT ───────────────────────────")
     print(classification_report(y_test, y_pred, target_names=['Legitimate', 'Phishing']))
     
-    # Save model and metrics
-    os.makedirs('/home/claude/phishing-platform/backend/model', exist_ok=True)
-    
-    model_path = '/home/claude/phishing-platform/backend/model/phishing_model.pkl'
+    # Save model and metrics — relative to this script's location
+    save_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(save_dir, exist_ok=True)
+
+    model_path = os.path.join(save_dir, 'phishing_model.pkl')
     with open(model_path, 'wb') as f:
         pickle.dump(pipeline, f)
     
@@ -264,7 +265,7 @@ def train_model():
         'confusion_matrix': cm.tolist()
     }
     
-    metrics_path = '/home/claude/phishing-platform/backend/model/metrics.json'
+    metrics_path = os.path.join(save_dir, 'metrics.json')
     with open(metrics_path, 'w') as f:
         json.dump(metrics, f, indent=2)
     
