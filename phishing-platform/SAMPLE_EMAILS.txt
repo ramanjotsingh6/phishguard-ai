@@ -1,0 +1,200 @@
+============================================================
+  SAMPLE PHISHING EMAILS FOR TESTING - PhishGuard AI
+============================================================
+
+────────────────────────────────────────────────────────────
+SAMPLE 1: PayPal Phishing (Classic credential harvest)
+────────────────────────────────────────────────────────────
+From: security@paypa1-verify.xyz
+Reply-To: noreply@paypal-secure.ru
+Subject: URGENT: Your PayPal Account Has Been Suspended!
+
+Dear Valued Customer,
+
+SECURITY ALERT: We have detected SUSPICIOUS ACTIVITY on your PayPal account.
+Your account has been TEMPORARILY SUSPENDED for security reasons.
+
+To restore access IMMEDIATELY, you MUST verify your identity within 24 HOURS
+or your account will be PERMANENTLY CLOSED and your funds seized.
+
+✅ Click here to verify NOW: http://paypal-account-verify.xyz/login?token=ABC123
+
+⚠️ WARNING: Failure to verify within 24 HOURS will result in:
+• Permanent account closure
+• Legal action proceedings
+• Funds held for investigation
+
+Please provide your:
+- Full name and date of birth
+- Account password
+- Credit card number and CVV
+
+Act NOW before it's too late!!!
+
+PayPal Security Team
+© 2024 PayPal Inc. All rights reserved
+
+────────────────────────────────────────────────────────────
+SAMPLE 2: IRS Tax Scam
+────────────────────────────────────────────────────────────
+From: irs-notifications@irs-gov-alert.tk
+Subject: FINAL NOTICE: Unpaid Tax Balance $3,247.00 - Arrest Warrant Pending
+
+URGENT FEDERAL NOTICE
+
+This is your FINAL WARNING from the Internal Revenue Service.
+
+Our records indicate you have an OUTSTANDING TAX BALANCE of $3,247.00 which 
+remains unpaid. Failure to resolve this IMMEDIATELY will result in:
+
+- Arrest warrant issued within 24 hours
+- Wage garnishment
+- Property seizure  
+- Criminal prosecution
+
+To avoid arrest, pay immediately at: http://irs-payment-center.xyz/pay
+
+Or call our enforcement hotline: 1-888-555-FAKE
+
+This matter requires your IMMEDIATE attention. Do not ignore this notice.
+
+IRS Enforcement Division
+
+────────────────────────────────────────────────────────────
+SAMPLE 3: Microsoft Account Phishing
+────────────────────────────────────────────────────────────
+From: account-security@microsoft-alerts.ru
+Subject: ⚠️ Your Microsoft Account Will Be Deleted in 48 Hours
+
+Dear Microsoft User,
+
+We have detected unusual sign-in activity on your account from:
+Location: Russia (Moscow)
+IP: 192.168.45.231
+Time: 11:42 PM
+
+If you did not authorize this, your account will be automatically DELETED
+in 48 hours as a security measure.
+
+To prevent deletion and secure your account IMMEDIATELY:
+→ Click here: http://microsoft-account-restore.xyz/secure
+
+Verify your credentials:
+• Email address
+• Current password
+• Phone number
+• Security questions
+
+WARNING: Do not delay. Your files and emails will be permanently lost.
+
+Microsoft Security Team
+Microsoft Corporation
+
+────────────────────────────────────────────────────────────
+SAMPLE 4: Lottery/Prize Scam
+────────────────────────────────────────────────────────────
+From: winner-notification@global-lottery-prize.tk
+Subject: 🎉 CONGRATULATIONS! You Have Won $1,500,000.00 USD!
+
+OFFICIAL PRIZE NOTIFICATION
+
+Dear Winner,
+
+We are pleased to inform you that your email address has been selected as
+the WINNER of the GLOBAL ONLINE LOTTERY SWEEPSTAKES!
+
+PRIZE AMOUNT: $1,500,000.00 (ONE MILLION FIVE HUNDRED THOUSAND DOLLARS)
+
+To claim your prize, you must:
+1. Pay a processing fee of $250 via wire transfer
+2. Provide your full name, address, and bank details
+3. Send copies of ID and passport
+
+Contact our claims agent immediately:
+Email: claims@lottery-prize-winner.tk
+WhatsApp: +44-555-FAKE-NUM
+
+This offer expires in 48 HOURS. Act NOW to claim your prize!
+
+Global Lottery Foundation
+
+────────────────────────────────────────────────────────────
+SAMPLE 5: FedEx Package Scam  
+────────────────────────────────────────────────────────────
+From: delivery@fedex-tracking-alerts.xyz
+Subject: Your Package Cannot Be Delivered - Action Required
+
+FedEx Delivery Notification
+
+Dear Customer,
+
+Your package (Tracking #: FX-FAKE-847291) could not be delivered due to 
+an incomplete address. The package will be RETURNED TO SENDER in 24 hours
+unless you confirm your delivery details.
+
+To reschedule delivery, please pay a small redelivery fee of $2.99:
+http://fedex-redelivery-confirm.xyz/pay?tracking=847291
+
+Enter your:
+- Full delivery address
+- Credit card details for $2.99 fee
+- Phone number
+
+IMPORTANT: If not resolved within 24 HOURS, your package will be destroyed.
+
+FedEx Customer Service
+
+============================================================
+  SAMPLE LEGITIMATE EMAILS FOR COMPARISON
+============================================================
+
+────────────────────────────────────────────────────────────
+LEGIT 1: Standard business newsletter
+────────────────────────────────────────────────────────────
+From: team@productcompany.com
+Subject: Your November 2024 Product Update
+
+Hi Sarah,
+
+Thanks for being with us this month. Here's what's new:
+
+New Features Released:
+- Improved search functionality  
+- Export reports to CSV and PDF
+- New team collaboration tools
+
+Your account this month:
+- 23 projects completed
+- Storage: 4.1 GB used of 10 GB
+
+No action needed. Manage preferences in your account settings.
+
+Best,
+The Product Team
+
+────────────────────────────────────────────────────────────
+LEGIT 2: Meeting invitation
+────────────────────────────────────────────────────────────
+From: calendar@company.com
+Subject: Meeting Invitation: Q4 Review - Friday 2 PM
+
+Hi team,
+
+You're invited to our Q4 performance review meeting.
+
+Date: Friday, November 15, 2024
+Time: 2:00 PM - 3:30 PM EST
+Location: Conference Room B / Zoom (link in calendar)
+
+Agenda:
+1. Q4 financial review
+2. Year-end goals assessment  
+3. 2025 planning kickoff
+
+Please review the attached Q4 report before the meeting.
+
+Best regards,
+David Chen
+VP Operations
+
+============================================================

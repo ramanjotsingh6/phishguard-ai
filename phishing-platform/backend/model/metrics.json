@@ -1,0 +1,21 @@
+{
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "cv_mean": 0.8799999999999999,
+  "cv_std": 0.050990195135927834,
+  "training_samples": 80,
+  "test_samples": 20,
+  "total_samples": 100,
+  "confusion_matrix": [
+    [
+      10,
+      0
+    ],
+    [
+      0,
+      10
+    ]
+  ]
+}
