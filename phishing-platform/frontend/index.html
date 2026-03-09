@@ -334,7 +334,7 @@ function App() {
 
   const checkBackend = async () => {
     try {
-      const r = await fetch('http://localhost:5000/health', { signal: AbortSignal.timeout(2000) });
+     const r = await fetch('https://phishguard-ai-fold.onrender.com/health', { signal: AbortSignal.timeout(2000) });
       if (r.ok) {
         setBackendOn(true);
         const s = await fetch(`${API_BASE}/dashboard-stats`);
