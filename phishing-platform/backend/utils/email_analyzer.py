@@ -20,16 +20,18 @@ URGENCY_PATTERNS = [
 ]
 
 THREAT_PATTERNS = [
-    r'\barrest\b', r'\bjail\b', r'\blegal action\b', r'\bcourt\b',
+    r'\barrest(ed)?\b', r'\bjail\b', r'\blegal action\b', r'\bcourt\b',
     r'\blawsuit\b', r'\bpenalt(y|ies)\b', r'\bfine[sd]?\b', r'\bblock(ed)?\b',
     r'\blocked?\b', r'\bfrozen?\b', r'\bsuspended?\b', r'\bterminated?\b',
-    r'\bseized?\b', r'\bcriminal\b', r'\bpolice\b'
+    r'\bseized?\b', r'\bcriminal\b', r'\bpolice\b', r'\bwill be arrested\b',
+    r'\bwarrant\b', r'\bprosecute\b', r'\bcharged\b'
 ]
 
 FINANCIAL_PATTERNS = [
-    r'\b(won|win)\b', r'\bprize\b', r'\breward\b', r'\bfree\b',
-    r'\bgift card\b', r'\blottery\b', r'\bmillion(s)?\b', r'\bbillion\b',
-    r'\bcash\b', r'\binvestment\b', r'\bprofit\b', r'\bguaranteed\b',
+    r'\b(won|win|winner)\b', r'\bprize\b', r'\breward\b', r'\bfree\b',
+    r'\bgift card\b', r'\blottery\b', r'\bsweepstakes\b', r'\bmillion(s)?\b',
+    r'\bbillion\b', r'\bcash\b', r'\binvestment\b', r'\bprofit\b',
+    r'\bguaranteed\b', r'\blucky winner\b', r'\bunclaimed\b',
     r'\b\$\d+\b', r'\b\d+%\s*(profit|return|bonus)\b'
 ]
 
@@ -107,6 +109,15 @@ def analyze_url(url):
         issues.append('Unusually long domain name')
         risk += 10
 
+    # Messaging app redirects used in scams/phishing
+    # Legitimate emails rarely direct users to Telegram/WhatsApp channels
+    SCAM_REDIRECT_DOMAINS = ['t.me', 'telegram.me', 'wa.me', 'whatsapp.com/group']
+    for rd in SCAM_REDIRECT_DOMAINS:
+        if rd in domain or rd in full:
+            issues.append(f'Redirects to messaging app ({rd}) — common scam tactic')
+            risk += 40
+            break
+
     # Suspicious keywords in path/domain
     suspicious_keywords = ['verify', 'secure', 'login', 'confirm', 'update',
                            'validate', 'account', 'payment', 'billing', 'unlock']
@@ -114,6 +125,14 @@ def analyze_url(url):
     if len(found_keywords) >= 2:
         issues.append(f'Suspicious keywords in URL: {", ".join(found_keywords[:3])}')
         risk += 20
+
+    # Gambling / betting / adult keywords in URL path
+    scam_path_keywords = ['bet', 'casino', 'poker', 'slot', 'gambl', 'porn',
+                          'crypto-profit', 'investment-return', 'forex', 'trading-signal']
+    found_scam = [k for k in scam_path_keywords if k in full]
+    if found_scam:
+        issues.append(f'Scam/gambling keywords in URL: {", ".join(found_scam[:3])}')
+        risk += 25
 
     # Redirect indicators
     if 'redirect' in full or 'url=' in full or 'link=' in full:
@@ -348,7 +367,7 @@ def analyze_email_header(raw_header_text):
             })
     
     # DKIM check
-    dkim_present = 'dkim' in parsed
+    dkim_present = 'dkim' in parsed and bool(parsed.get('dkim', '').strip())
     if not dkim_present:
         header_issues.append({
             'type': 'no_dkim',
