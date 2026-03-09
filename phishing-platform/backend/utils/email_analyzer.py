@@ -60,6 +60,15 @@ def extract_urls(text):
     return re.findall(url_pattern, text)
 
 
+# Trusted hosting/platform domains — never flag these
+TRUSTED_DOMAINS = [
+    'onrender.com', 'netlify.app', 'vercel.app', 'herokuapp.com',
+    'github.io', 'github.com', 'gitlab.com', 'pages.dev',
+    'azurewebsites.net', 'amazonaws.com', 'cloudfront.net',
+    'firebaseapp.com', 'web.app', 'surge.sh', 'fly.dev',
+    'railway.app', 'cyclic.app', 'glitch.me', 'replit.dev',
+]
+
 def analyze_url(url):
     """Analyze a single URL for suspicious indicators."""
     issues = []
@@ -72,6 +81,11 @@ def analyze_url(url):
         full = url.lower()
     except Exception:
         return {'url': url, 'risk': 50, 'issues': ['Malformed URL'], 'safe': False}
+
+    # Trusted hosting platforms — always safe regardless of other signals
+    for trusted in TRUSTED_DOMAINS:
+        if domain == trusted or domain.endswith('.' + trusted):
+            return {'url': url, 'domain': domain, 'risk': 0, 'issues': [], 'safe': True, 'https': url.startswith('https://')}
 
     # Check suspicious TLD
     for tld in SUSPICIOUS_TLDS:
@@ -471,4 +485,3 @@ def get_recommendation(risk_score):
         return "Review carefully. Minor suspicious elements detected. Confirm sender identity if unsure."
     else:
         return "Email appears safe. Continue exercising standard email security practices."
- 
