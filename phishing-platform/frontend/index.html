@@ -43,7 +43,7 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const API_BASE = "https://phishguard-ai-fold.onrender.com/api";  // ← Replace with your Render URL e.g. https://phishguard-api.onrender.com/api
+const API_BASE = "https://phishguard-ai-fold.onrender.com/api";
 
 // ─── DEMO MOCK DATA ───────────────────────────────────────────────────────────
 const MOCK_ANALYSIS = (emailText) => {
@@ -334,7 +334,7 @@ function App() {
 
   const checkBackend = async () => {
     try {
-     const r = await fetch('https://phishguard-ai-fold.onrender.com/health', { signal: AbortSignal.timeout(2000) });
+      const r = await fetch(`${API_BASE.replace('/api','')}/health`, { signal: AbortSignal.timeout(2000) });
       if (r.ok) {
         setBackendOn(true);
         const s = await fetch(`${API_BASE}/dashboard-stats`);
