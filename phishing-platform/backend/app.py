@@ -1,21 +1,27 @@
 """
 PhishGuard AI - Flask API
-Rule-based phishing detection (no heavy ML dependencies)
+Pure rule-based phishing detection (no scikit-learn required)
 """
 
-import os, sys, json, time, re, hashlib
+import os
+import sys
+import json
+import time
+import hashlib
 from datetime import datetime
 from flask import Flask, request, jsonify, Response
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.email_analyzer import (
-    analyze_email_features, analyze_email_header,
-    calculate_risk_score, generate_explanation, extract_urls
+    analyze_email_features,
+    analyze_email_header,
+    generate_explanation,
+    extract_urls
 )
 
 app = Flask(__name__)
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# CORS
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -28,7 +34,7 @@ def add_cors_headers(response):
 def options_handler(path):
     return Response('', status=200)
 
-# ── METRICS (hardcoded — no pkl file needed) ──────────────────────────────────
+# Model metrics
 MODEL_METRICS = {
     'accuracy': 0.88, 'precision': 0.892, 'recall': 0.874,
     'f1_score': 0.883, 'cv_mean': 0.88, 'cv_std': 0.051
@@ -39,44 +45,42 @@ scan_stats = {
     'safe_emails': 0, 'recent_scans': []
 }
 
-# ── PREDICTION (pure rule-based, no scikit-learn) ─────────────────────────────
+
 def predict_email(text):
-    """Predict phishing using weighted rule-based scoring."""
     features = analyze_email_features(text)
     f = features['features']
-
     score = 0
-    score += min(f.get('urgency_count', 0), 4)       * 8
-    score += min(f.get('threat_count', 0), 3)         * 12
-    score += min(f.get('financial_count', 0), 3)      * 10
-    score += min(f.get('credential_count', 0), 3)     * 12
+    score += min(f.get('urgency_count', 0), 4) * 8
+    score += min(f.get('threat_count', 0), 3) * 12
+    score += min(f.get('financial_count', 0), 3) * 10
+    score += min(f.get('credential_count', 0), 3) * 12
     score += min(f.get('suspicious_url_count', 0), 5) * 20
-    score += min(f.get('brand_mention', 0), 2)        * 6
-    score += min(f.get('all_caps_count', 0), 5)       * 3
-    score += min(f.get('exclamation_count', 0), 5)    * 2
+    score += min(f.get('brand_mention', 0), 2) * 6
+    score += min(f.get('all_caps_count', 0), 5) * 3
+    score += min(f.get('exclamation_count', 0), 5) * 2
     score = min(max(score, 0), 100)
-
-    is_phishing = score >= 20  # 1 suspicious URL (15pts) + any other signal tips it over
+    is_phishing = score >= 20
     if is_phishing:
         confidence = min(99.0, 55.0 + score * 0.4)
     else:
         confidence = min(95.0, max(60.0, 90.0 - score * 0.5))
     return int(is_phishing), round(confidence, 1)
 
-# ── UTILITY ───────────────────────────────────────────────────────────────────
-def get_scan_id():
-    return hashlib.md5(f"{time.time()}".encode()).hexdigest()[:12].upper()
 
-# ── ROUTES ────────────────────────────────────────────────────────────────────
+def get_scan_id():
+    return hashlib.md5(str(time.time()).encode()).hexdigest()[:12].upper()
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({
         'status': 'operational',
         'model_loaded': True,
-        'model_type': 'Rule-Based Ensemble',
+        'model_type': 'Rule-Based Weighted Ensemble',
         'version': '1.0.0',
         'timestamp': datetime.utcnow().isoformat()
     })
+
 
 @app.route('/api/analyze-email', methods=['POST'])
 def analyze_email():
@@ -89,32 +93,32 @@ def analyze_email():
         return jsonify({'error': 'Email too long (max 50,000 chars)'}), 400
 
     email_header = data.get('email_header', '')
-    features     = analyze_email_features(email_text)
-    header_info  = analyze_email_header(email_header) if email_header else {
+    features = analyze_email_features(email_text)
+    header_info = analyze_email_header(email_header) if email_header else {
         'spf_pass': None, 'dkim_present': False,
         'reply_to_mismatch': False, 'header_issues': []
     }
 
-    # Predict
     prediction, confidence = predict_email(email_text)
     is_phishing = bool(prediction)
 
-    # Risk score (0-100, inline, no external dependency)
     f = features['features']
     raw = 0
-    raw += min(f.get('urgency_count', 0), 4)       * 8
-    raw += min(f.get('threat_count', 0), 3)         * 12
-    raw += min(f.get('financial_count', 0), 3)      * 10
-    raw += min(f.get('credential_count', 0), 3)     * 12
+    raw += min(f.get('urgency_count', 0), 4) * 8
+    raw += min(f.get('threat_count', 0), 3) * 12
+    raw += min(f.get('financial_count', 0), 3) * 10
+    raw += min(f.get('credential_count', 0), 3) * 12
     raw += min(f.get('suspicious_url_count', 0), 5) * 20
-    raw += min(f.get('brand_mention', 0), 2)        * 6
-    raw += min(f.get('all_caps_count', 0), 5)       * 3
-    raw += min(f.get('exclamation_count', 0), 5)    * 2
-    risk_score = min(100, max(30, raw)) if is_phishing else min(25, max(0, raw // 3))
+    raw += min(f.get('brand_mention', 0), 2) * 6
+    raw += min(f.get('all_caps_count', 0), 5) * 3
+    raw += min(f.get('exclamation_count', 0), 5) * 2
+    if is_phishing:
+        risk_score = min(100, max(30, raw))
+    else:
+        risk_score = min(25, max(0, raw // 3))
 
     explanation = generate_explanation(prediction, confidence, features, risk_score)
 
-    # Build threat_flags from indicators
     color_map = {'critical': 'red', 'high': 'orange', 'medium': 'yellow', 'low': 'blue'}
     threat_flags = [
         {'type': i['type'], 'label': i['label'],
@@ -150,44 +154,41 @@ def analyze_email():
         'model_confidence': confidence
     })
 
+
 @app.route('/api/scan-links', methods=['POST'])
 def scan_links():
     data = request.get_json(silent=True)
     if not data:
         return jsonify({'error': 'JSON body required'}), 400
-
     urls = data.get('urls', [])
     if not urls and data.get('text'):
         urls = extract_urls(data['text'])
     if not urls:
         return jsonify({'error': 'No URLs provided'}), 400
-
     from utils.email_analyzer import analyze_url
-    results = []
-    for url in urls[:20]:
-        r = analyze_url(url)
-        results.append(r)
-
-    overall_risk = max((r['risk'] for r in results), default=0)
+    results = [analyze_url(url) for url in urls[:20]]
     return jsonify({
         'urls_analyzed': len(results),
         'results': results,
-        'overall_risk': overall_risk,
+        'overall_risk': max((r['risk'] for r in results), default=0),
         'safe_count': sum(1 for r in results if r['safe']),
         'suspicious_count': sum(1 for r in results if not r['safe'])
     })
+
 
 @app.route('/api/dashboard-stats', methods=['GET'])
 def dashboard_stats():
     return jsonify({
         **scan_stats,
-        'detection_rate': round(scan_stats['phishing_detected'] / max(scan_stats['total_scans'], 1) * 100, 1),
-        'model_accuracy':   round(MODEL_METRICS['accuracy'] * 100, 2),
-        'model_precision':  round(MODEL_METRICS['precision'] * 100, 2),
-        'model_recall':     round(MODEL_METRICS['recall'] * 100, 2),
-        'model_f1':         round(MODEL_METRICS['f1_score'] * 100, 2),
-        'model_cv_accuracy':round(MODEL_METRICS['cv_mean'] * 100, 2),
+        'detection_rate': round(
+            scan_stats['phishing_detected'] / max(scan_stats['total_scans'], 1) * 100, 1),
+        'model_accuracy': round(MODEL_METRICS['accuracy'] * 100, 2),
+        'model_precision': round(MODEL_METRICS['precision'] * 100, 2),
+        'model_recall': round(MODEL_METRICS['recall'] * 100, 2),
+        'model_f1': round(MODEL_METRICS['f1_score'] * 100, 2),
+        'model_cv_accuracy': round(MODEL_METRICS['cv_mean'] * 100, 2),
     })
+
 
 @app.route('/api/model-info', methods=['GET'])
 def model_info():
@@ -195,10 +196,13 @@ def model_info():
         'model_type': 'Rule-Based Weighted Ensemble',
         'model_loaded': True,
         'metrics': MODEL_METRICS,
-        'features': ['urgency_patterns', 'threat_patterns', 'financial_lures',
-                     'credential_harvesting', 'url_analysis', 'brand_impersonation',
-                     'header_analysis', 'formatting_signals']
+        'features': [
+            'urgency_patterns', 'threat_patterns', 'financial_lures',
+            'credential_harvesting', 'url_analysis', 'brand_impersonation',
+            'header_analysis', 'formatting_signals'
+        ]
     })
+
 
 @app.route('/api/export-report', methods=['POST'])
 def export_report():
@@ -217,14 +221,17 @@ def export_report():
         'threat_flags': data.get('threat_flags', [])
     })
 
-# ── ERROR HANDLERS ────────────────────────────────────────────────────────────
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Endpoint not found'}), 404
+
 
 @app.errorhandler(405)
 def method_not_allowed(e):
     return jsonify({'error': 'Method not allowed'}), 405
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
