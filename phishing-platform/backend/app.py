@@ -50,7 +50,12 @@ scan_stats = {
     'recent_scans': []
 }
 
-def load_model():
+def # Lazy load — model loads on first request, not at startup
+# This prevents Render free tier from hitting memory limits during boot
+@app.before_request
+def ensure_model_loaded():
+    if model is None:
+        load_model():
     global model, model_metrics
     try:
         with open(MODEL_PATH, 'rb') as f:
