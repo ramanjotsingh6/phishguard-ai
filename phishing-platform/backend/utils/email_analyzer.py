@@ -471,3 +471,4 @@ def get_recommendation(risk_score):
         return "Review carefully. Minor suspicious elements detected. Confirm sender identity if unsure."
     else:
         return "Email appears safe. Continue exercising standard email security practices."
+ 
