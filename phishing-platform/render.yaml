@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: phishguard-api
+    runtime: python
+    rootDir: phishing-platform/backend
+    buildCommand: pip install -r requirements.txt && python3 model/train_model.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --keep-alive 5
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: phishguard-frontend
+    runtime: static
+    rootDir: phishing-platform/frontend
+    staticPublishPath: .
