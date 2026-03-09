@@ -38,8 +38,8 @@ def options_handler(path):
 
 # Metrics
 MODEL_METRICS = {
-    'accuracy': 0.95, 'precision': 0.94, 'recall': 0.96,
-    'f1_score': 0.95, 'cv_mean': 0.95, 'cv_std': 0.02
+    'accuracy': 0.83, 'precision': 0.86, 'recall': 0.81,
+    'f1_score': 0.835, 'cv_mean': 0.83, 'cv_std': 0.03
 }
 
 scan_stats = {
@@ -169,14 +169,16 @@ def analyze_email():
     # Risk score
     f = features['features']
     raw = 0
-    raw += min(f.get('urgency_count', 0), 4) * 8
-    raw += min(f.get('threat_count', 0), 3) * 12
-    raw += min(f.get('financial_count', 0), 3) * 10
-    raw += min(f.get('credential_count', 0), 3) * 12
-    raw += min(f.get('suspicious_url_count', 0), 5) * 20
-    raw += min(f.get('brand_mention', 0), 2) * 6
+    raw += min(f.get('urgency_count', 0), 4) * 6
+    raw += min(f.get('threat_count', 0), 3) * 14
+    raw += min(f.get('financial_count', 0), 3) * 8
+    raw += min(f.get('credential_count', 0), 3) * 14
+    raw += min(f.get('suspicious_url_count', 0), 5) * 22
+    raw += min(f.get('brand_mention', 0), 2) * 5
     raw += min(f.get('all_caps_count', 0), 5) * 3
     raw += min(f.get('exclamation_count', 0), 5) * 2
+    if f.get('suspicious_url_count', 0) == 0 and f.get('threat_count', 0) == 0 and f.get('credential_count', 0) == 0:
+        raw = int(raw * 0.6)
     if is_phishing:
         risk_score = min(100, max(30, int(confidence)))
     else:

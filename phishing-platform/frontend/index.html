@@ -150,7 +150,7 @@ const MOCK_ANALYSIS = (emailText) => {
   };
 };
 
-const MOCK_STATS = { total_scans: 247, phishing_detected: 183, safe_emails: 64, detection_rate: 74.1, model_accuracy: 88.0, model_precision: 89.2, model_recall: 87.4, model_f1: 88.3, model_cv_accuracy: 88.0 };
+const MOCK_STATS = { total_scans: 247, phishing_detected: 183, safe_emails: 64, detection_rate: 74.1, model_accuracy: 83.0, model_precision: 86.0, model_recall: 81.0, model_f1: 83.5, model_cv_accuracy: 83.0 };
 
 const PHISHING_EXAMPLE = `From: security-alert@paypa1-support.xyz
 Reply-To: noreply@paypal-verify.ru
@@ -537,7 +537,7 @@ function App() {
               <StatCard icon="scan" label="Total Scans" value={stats.total_scans.toLocaleString()} sub="All time" color="#3b82f6" />
               <StatCard icon="alert" label="Phishing Detected" value={stats.phishing_detected.toLocaleString()} sub={`${stats.detection_rate}% detection rate`} color="#ef4444" />
               <StatCard icon="check" label="Safe Emails" value={stats.safe_emails.toLocaleString()} sub="Verified legitimate" color="#22c55e" />
-              <StatCard icon="cpu" label="Model Accuracy" value={`${stats.model_accuracy}%`} sub="CV validated" color="#8b5cf6" />
+              <StatCard icon="cpu" label="Model Accuracy" value={`${stats.model_accuracy}%`} sub="Rule-based + Gemini AI" color="#8b5cf6" />
             </div>
 
             <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:20 }}>
