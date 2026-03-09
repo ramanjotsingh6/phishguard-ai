@@ -84,10 +84,14 @@ def analyze_url(url):
         risk += 40
 
     # Brand impersonation in domain
+    # Only flag if brand appears in domain but is NOT the official domain
+    # e.g. paypal-verify.xyz -> flag | www.paypal.com -> safe | paypal.com.evil.ru -> flag
     for brand in BRAND_IMPERSONATION:
-        if brand in domain and brand not in ['paypal.com', f'{brand}.com']:
-            # Brand name in domain but not the official domain
-            if not domain.startswith(brand) or (brand in domain and '.' + brand + '.com' not in domain):
+        if brand in domain:
+            clean_domain = domain[4:] if domain.startswith('www.') else domain
+            official = f'{brand}.com'
+            is_official = (clean_domain == official or clean_domain.endswith(f'.{official}'))
+            if not is_official:
                 issues.append(f'Brand impersonation: {brand}')
                 risk += 35
                 break
