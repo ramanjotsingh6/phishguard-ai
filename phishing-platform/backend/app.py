@@ -9,7 +9,6 @@ import json
 import time
 import hashlib
 import urllib.request
-import urllib.error
 from datetime import datetime
 from flask import Flask, request, jsonify, Response
 
@@ -18,12 +17,12 @@ from utils.email_analyzer import (
     analyze_email_features,
     analyze_email_header,
     generate_explanation,
-    extract_urls
+    extract_urls,
+    analyze_url
 )
 
 app = Flask(__name__)
 
-# CORS
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -36,7 +35,6 @@ def add_cors_headers(response):
 def options_handler(path):
     return Response('', status=200)
 
-# Metrics
 MODEL_METRICS = {
     'accuracy': 0.83, 'precision': 0.86, 'recall': 0.81,
     'f1_score': 0.835, 'cv_mean': 0.83, 'cv_std': 0.03
@@ -50,25 +48,9 @@ scan_stats = {
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 
-def rule_based_score(features):
-    f = features['features']
-    score = 0
-    score += min(f.get('urgency_count', 0), 4) * 8
-    score += min(f.get('threat_count', 0), 3) * 12
-    score += min(f.get('financial_count', 0), 3) * 10
-    score += min(f.get('credential_count', 0), 3) * 12
-    score += min(f.get('suspicious_url_count', 0), 5) * 20
-    score += min(f.get('brand_mention', 0), 2) * 6
-    score += min(f.get('all_caps_count', 0), 5) * 3
-    score += min(f.get('exclamation_count', 0), 5) * 2
-    return min(max(score, 0), 100)
-
-
 def gemini_analyze(email_text):
-    """Call Google Gemini AI to analyze the email. Returns (is_phishing, confidence, reasoning)."""
     if not GEMINI_API_KEY:
         return None, None, None
-
     prompt = f"""You are a cybersecurity expert specializing in phishing detection.
 Analyze this email and determine if it is phishing or legitimate.
 
@@ -77,89 +59,58 @@ EMAIL:
 
 Reply with ONLY a JSON object, no other text, no markdown:
 {{"is_phishing": true or false, "confidence": 0-100, "reasoning": "one sentence explanation", "risk_level": "CRITICAL" or "HIGH" or "MEDIUM" or "LOW" or "SAFE"}}"""
-
     try:
         url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}'
         payload = json.dumps({
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1, "maxOutputTokens": 256}
         }).encode('utf-8')
-
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
-
+        req = urllib.request.Request(url, data=payload,
+            headers={'Content-Type': 'application/json'}, method='POST')
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode('utf-8'))
             text = data['candidates'][0]['content']['parts'][0]['text'].strip()
             text = text.replace('```json', '').replace('```', '').strip()
             result = json.loads(text)
-            return (
-                bool(result.get('is_phishing', False)),
-                float(result.get('confidence', 70)),
-                result.get('reasoning', '')
-            )
+            return bool(result.get('is_phishing', False)), float(result.get('confidence', 70)), result.get('reasoning', '')
     except Exception as e:
-        print(f"Gemini API error: {e}")
+        print(f"Gemini error: {e}")
         return None, None, None
 
 
-def gemini_analyze_url(url):
-    """Use Gemini AI to check if a URL is phishing. Returns (is_phishing, confidence, reason)."""
-    if not GEMINI_API_KEY:
-        return None, None, None
-
-    prompt = f"""You are a cybersecurity expert. Analyze this URL and determine if it is a phishing/malicious URL or legitimate.
-
-URL: {url}
-
-Consider: suspicious TLDs, free hosting abuse, brand impersonation, typosquatting, misleading paths, IP addresses, URL shorteners used for phishing, numeric subdomains, and overall URL structure.
-
-Reply ONLY with JSON, no markdown:
-{{"is_phishing": true or false, "confidence": 0-100, "reason": "one sentence"}}"""
-
-    try:
-        api_url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}'
-        payload = json.dumps({
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 128}
-        }).encode('utf-8')
-        req = urllib.request.Request(api_url, data=payload,
-            headers={'Content-Type': 'application/json'}, method='POST')
-        with urllib.request.urlopen(req, timeout=8) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            text = data['candidates'][0]['content']['parts'][0]['text'].strip()
-            text = text.replace('```json','').replace('```','').strip()
-            result = json.loads(text)
-            return bool(result.get('is_phishing')), float(result.get('confidence', 70)), result.get('reason','')
-    except Exception as e:
-        print(f"Gemini URL analysis error: {e}")
-        return None, None, None
+def rule_based_score(features):
+    f = features['features']
+    score = 0
+    score += min(f.get('urgency_count', 0), 4) * 6
+    score += min(f.get('threat_count', 0), 3) * 14
+    score += min(f.get('financial_count', 0), 3) * 8
+    score += min(f.get('credential_count', 0), 3) * 14
+    score += min(f.get('suspicious_url_count', 0), 5) * 22
+    score += min(f.get('brand_mention', 0), 2) * 5
+    score += min(f.get('all_caps_count', 0), 5) * 3
+    score += min(f.get('exclamation_count', 0), 5) * 2
+    if f.get('suspicious_url_count', 0) == 0 and f.get('threat_count', 0) == 0 and f.get('credential_count', 0) == 0:
+        score = int(score * 0.6)
+    return min(max(score, 0), 100)
 
 
 def predict_email(text, features):
-    """Hybrid prediction: Gemini AI + rules combined."""
     rule_score = rule_based_score(features)
-    rule_phishing = rule_score >= 20
+    rule_phishing = rule_score >= 25
     rule_conf = min(99.0, 55.0 + rule_score * 0.4) if rule_phishing else min(95.0, max(60.0, 90.0 - rule_score * 0.5))
 
     ai_phishing, ai_confidence, ai_reasoning = gemini_analyze(text)
 
     if ai_phishing is not None:
-        # AI=70%, Rules=30% weighted combination
         combined_conf = (ai_confidence * 0.7) + (rule_conf * 0.3)
         if ai_phishing == rule_phishing:
             final_phishing = ai_phishing
             final_conf = min(99.0, combined_conf * 1.1)
         else:
-            # AI takes priority but with reduced confidence when disagreeing
             final_phishing = ai_phishing
             final_conf = min(85.0, combined_conf * 0.85)
         return int(final_phishing), round(final_conf, 1), ai_reasoning, True
     else:
-        # Fallback to rules only if Gemini unavailable
         return int(rule_phishing), round(rule_conf, 1), None, False
 
 
@@ -187,7 +138,7 @@ def analyze_email():
         return jsonify({'error': 'email_text is required'}), 400
     email_text = data['email_text']
     if len(email_text) > 50000:
-        return jsonify({'error': 'Email too long (max 50,000 chars)'}), 400
+        return jsonify({'error': 'Email too long'}), 400
 
     email_header = data.get('email_header', '')
     features = analyze_email_features(email_text)
@@ -199,27 +150,14 @@ def analyze_email():
     prediction, confidence, ai_reasoning, ai_used = predict_email(email_text, features)
     is_phishing = bool(prediction)
 
-    # Risk score
     f = features['features']
-    raw = 0
-    raw += min(f.get('urgency_count', 0), 4) * 6
-    raw += min(f.get('threat_count', 0), 3) * 14
-    raw += min(f.get('financial_count', 0), 3) * 8
-    raw += min(f.get('credential_count', 0), 3) * 14
-    raw += min(f.get('suspicious_url_count', 0), 5) * 22
-    raw += min(f.get('brand_mention', 0), 2) * 5
-    raw += min(f.get('all_caps_count', 0), 5) * 3
-    raw += min(f.get('exclamation_count', 0), 5) * 2
-    if f.get('suspicious_url_count', 0) == 0 and f.get('threat_count', 0) == 0 and f.get('credential_count', 0) == 0:
-        raw = int(raw * 0.6)
+    raw = rule_based_score(features)
     if is_phishing:
         risk_score = min(100, max(30, int(confidence)))
     else:
         risk_score = min(25, max(0, raw // 3))
 
     explanation = generate_explanation(prediction, confidence, features, risk_score)
-
-    # Inject AI reasoning into explanation
     if ai_reasoning:
         explanation['ai_reasoning'] = ai_reasoning
         explanation['ai_powered'] = True
@@ -273,22 +211,7 @@ def scan_links():
         urls = extract_urls(data['text'])
     if not urls:
         return jsonify({'error': 'No URLs provided'}), 400
-    from utils.email_analyzer import analyze_url
-    results = []
-    for url in urls[:20]:
-        r = analyze_url(url)
-        # If rule-based says safe or low risk, ask Gemini AI for second opinion
-        if r['safe'] or r['risk'] < 30:
-            ai_phish, ai_conf, ai_reason = gemini_analyze_url(url)
-            if ai_phish:
-                r['safe'] = False
-                r['risk'] = max(r['risk'], int(ai_conf * 0.8))
-                r['issues'].append(f'Gemini AI: {ai_reason}')
-                r['ai_flagged'] = True
-            elif ai_phish is not None:
-                r['ai_checked'] = True
-        results.append(r)
-
+    results = [analyze_url(url) for url in urls[:20]]
     return jsonify({
         'urls_analyzed': len(results),
         'results': results,
@@ -302,8 +225,7 @@ def scan_links():
 def dashboard_stats():
     return jsonify({
         **scan_stats,
-        'detection_rate': round(
-            scan_stats['phishing_detected'] / max(scan_stats['total_scans'], 1) * 100, 1),
+        'detection_rate': round(scan_stats['phishing_detected'] / max(scan_stats['total_scans'], 1) * 100, 1),
         'model_accuracy': round(MODEL_METRICS['accuracy'] * 100, 2),
         'model_precision': round(MODEL_METRICS['precision'] * 100, 2),
         'model_recall': round(MODEL_METRICS['recall'] * 100, 2),
@@ -320,11 +242,9 @@ def model_info():
         'model_loaded': True,
         'ai_enabled': bool(GEMINI_API_KEY),
         'metrics': MODEL_METRICS,
-        'features': [
-            'gemini_ai_analysis', 'urgency_patterns', 'threat_patterns',
-            'financial_lures', 'credential_harvesting', 'url_analysis',
-            'brand_impersonation', 'header_analysis', 'formatting_signals'
-        ]
+        'features': ['gemini_ai_analysis', 'urgency_patterns', 'threat_patterns',
+                     'financial_lures', 'credential_harvesting', 'url_analysis',
+                     'brand_impersonation', 'header_analysis']
     })
 
 
@@ -350,11 +270,9 @@ def export_report():
 def not_found(e):
     return jsonify({'error': 'Endpoint not found'}), 404
 
-
 @app.errorhandler(405)
 def method_not_allowed(e):
     return jsonify({'error': 'Method not allowed'}), 405
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
