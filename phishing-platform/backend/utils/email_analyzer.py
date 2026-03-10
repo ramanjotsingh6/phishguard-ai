@@ -64,12 +64,18 @@ def extract_urls(text):
     return re.findall(url_pattern, text)
 
 
-# Free hosting platforms commonly abused for phishing
+# URL shorteners — always suspicious as they hide real destination
 URL_SHORTENERS = [
     'tinyurl.com', 'bit.ly', 'goo.gl', 't.co', 'ow.ly', 'is.gd',
-    'tiny.cc', 'cutt.ly', 'rb.gy', 'shorturl.at', 'tiny.one',
-    'rebrand.ly', 'bl.ink', 'buff.ly', 'v.gd', 'tr.im', 'shorte.st',
+    'cli.gs', 'pic.gd', 'digg.com', 'turl.ca', 'tiny.cc', 'ff.im',
+    'shorte.st', 'go2l.ink', 'x.co', 'prettylinkpro.com', 'scrnch.me',
+    'filoops.info', 'vzturl.com', 'qr.net', '1url.com', 'tweez.me',
+    '7vd.cn', 'v.gd', 'tr.im', 'cutt.ly', 'rb.gy', 'shorturl.at',
+    'tiny.one', 'rebrand.ly', 'bl.ink', 'buff.ly', 'soo.gd',
+    'su.pr', 'twit.ac', 'u.to', 'url4.eu', 'qicksq.com',
 ]
+
+# Free hosting platforms commonly abused for phishing
 FREE_HOSTING_DOMAINS = [
     'jabry.com', 'freehosting.net', '000webhostapp.com', 'weebly.com',
     'wixsite.com', 'blogspot.com', 'wordpress.com', 'tumblr.com',
@@ -111,7 +117,9 @@ def analyze_url(url):
     for trusted in TRUSTED_DOMAINS:
         if domain == trusted or domain.endswith('.' + trusted):
             return {'url': url, 'domain': domain, 'risk': 0, 'issues': [], 'safe': True, 'https': url.startswith('https://')}
-for shortener in URL_SHORTENERS:
+
+    # URL shorteners — hide real destination, always suspicious
+    for shortener in URL_SHORTENERS:
         if domain == shortener or domain.endswith('.' + shortener):
             issues.append(f'URL shortener ({domain}) hides real destination — common in phishing')
             risk += 40
