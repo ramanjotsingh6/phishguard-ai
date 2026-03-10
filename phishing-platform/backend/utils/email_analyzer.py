@@ -36,10 +36,14 @@ FINANCIAL_PATTERNS = [
 ]
 
 CREDENTIAL_PATTERNS = [
-    r'\bverif(y|ication)\b', r'\bconfirm\b', r'\bvalidat(e|ion)\b',
-    r'\bauthenticat(e|ion)\b', r'\bupdate.*?(account|password|info)\b',
-    r'\b(login|sign.?in)\b', r'\bcredential\b', r'\bpassword\b',
-    r'\baccount.*?detail\b', r'\bpersonal.*?information\b'
+    r'\bverif(y|ication)\b', r'\bvalidat(e|ion)\b',
+    r'\bauthenticat(e|ion)\b',
+    r'\benter.*?(password|credentials|card|ssn)\b',
+    r'\bprovide.*?(password|credentials|account|card)\b',
+    r'\bsubmit.*?(password|credentials|details|info)\b',
+    r'\bcredential\b',
+    r'\baccount.*?detail\b', r'\bpersonal.*?information\b',
+    r'\bsocial.*?security\b', r'\bcredit.*?card.*?(number|detail)\b'
 ]
 
 SUSPICIOUS_TLDS = ['.xyz', '.tk', '.ru', '.ml', '.ga', '.cf', '.gq', '.pw',
@@ -60,6 +64,17 @@ def extract_urls(text):
     return re.findall(url_pattern, text)
 
 
+# Free hosting platforms commonly abused for phishing
+FREE_HOSTING_DOMAINS = [
+    'jabry.com', 'freehosting.net', '000webhostapp.com', 'weebly.com',
+    'wixsite.com', 'blogspot.com', 'wordpress.com', 'tumblr.com',
+    'angelfire.com', 'tripod.com', 'geocities.ws', 'freeservers.com',
+    'atspace.com', 'byethost.com', 'freehostia.com', 'awardspace.com',
+    'x10hosting.com', 'biz.nf', 'co.nf', 'uhostall.com',
+    'zxq.net', 'cjb.net', 'url.ph', 'almaktaba.org',
+    'ueuo.com', 'co.cc', 'tk', 'ml', 'ga', 'cf', 'gq',
+]
+
 # Trusted hosting/platform domains — never flag these
 TRUSTED_DOMAINS = [
     'onrender.com', 'netlify.app', 'vercel.app', 'herokuapp.com',
@@ -74,11 +89,16 @@ def analyze_url(url):
     issues = []
     risk = 0
 
+    # Normalize URL — prepend http:// if missing so urlparse works
+    raw_url = url.strip()
+    if not raw_url.startswith('http://') and not raw_url.startswith('https://'):
+        raw_url = 'http://' + raw_url
+
     try:
-        parsed = urlparse(url)
-        domain = parsed.netloc.lower()
+        parsed = urlparse(raw_url)
+        domain = parsed.netloc.lower().lstrip('www.')
         path = parsed.path.lower()
-        full = url.lower()
+        full = raw_url.lower()
     except Exception:
         return {'url': url, 'risk': 50, 'issues': ['Malformed URL'], 'safe': False}
 
@@ -86,6 +106,13 @@ def analyze_url(url):
     for trusted in TRUSTED_DOMAINS:
         if domain == trusted or domain.endswith('.' + trusted):
             return {'url': url, 'domain': domain, 'risk': 0, 'issues': [], 'safe': True, 'https': url.startswith('https://')}
+
+    # Free hosting platforms — commonly abused for phishing pages
+    for fh in FREE_HOSTING_DOMAINS:
+        if domain == fh or domain.endswith('.' + fh):
+            issues.append(f'Hosted on free platform ({fh}) — commonly abused for phishing')
+            risk += 45
+            break
 
     # Check suspicious TLD
     for tld in SUSPICIOUS_TLDS:
@@ -98,6 +125,31 @@ def analyze_url(url):
     if re.match(r'\d+\.\d+\.\d+\.\d+', domain):
         issues.append('IP address used instead of domain name')
         risk += 40
+
+    # Numeric subdomain (e.g. users11, ftp2, host99) — common in free hosting phishing
+    subdomain = domain.split('.')[0] if domain.count('.') >= 2 else ''
+    if re.match(r'^[a-z]+\d+$', subdomain) or re.match(r'^\d+[a-z]+\d*$', subdomain):
+        issues.append(f'Numeric subdomain pattern ({subdomain}) — common in phishing/free hosting abuse')
+        risk += 20
+
+    # Phishing path patterns — brand names in URL path
+    PHISHING_PATH_PATTERNS = [
+        r'/(paypal|amazon|apple|microsoft|google|netflix|ebay|chase|wellsfargo|bankofamerica|citibank|hsbc|barclays|aol|yahoo|outlook|gmail)[^/]*(login|signin|update|verify|secure|account|confirm|\.com)',
+        r'/(login|signin|verify|update|secure|account|confirm)[^/]*(paypal|amazon|apple|microsoft|google|netflix|ebay)',
+        r'/blopp/', r'/phishing/', r'/scam/', r'/fake/',
+        # Brand domain appearing IN the path (e.g. /paypal.com/ on a non-paypal domain)
+        r'/(paypal|amazon|apple|microsoft|google|netflix|ebay|chase|citibank|hsbc|barclays|aol|yahoo)\.com',
+    ]
+    for pat in PHISHING_PATH_PATTERNS:
+        if re.search(pat, path, re.IGNORECASE):
+            issues.append('Suspicious path — known brand name embedded in URL path (classic phishing)')
+            risk += 40
+            break
+
+    # Long random hex path segments (e.g. /70ffb52d079e55eb0a99bbd77b8fee09/) — phishing obfuscation
+    if re.search(r'/[0-9a-f]{16,}/', path):
+        issues.append('Obfuscated hex path segment — common phishing obfuscation technique')
+        risk += 30
 
     # Brand impersonation in domain
     # Only flag if brand appears in domain but is NOT the official domain
@@ -165,7 +217,8 @@ def analyze_url(url):
         risk += 20
 
     risk = min(100, risk)
-    is_safe = risk < 30 and not issues
+    # Safe only if: no issues at all AND low risk AND uses HTTPS
+    is_safe = risk == 0 and len(issues) == 0
 
     return {
         'url': url,
@@ -292,9 +345,58 @@ def analyze_email_features(email_text):
         })
         highlighted_keywords.extend(found_brands[:3])
 
+    # ── Typosquatted Sender Domain ───────────────────────
+    # Detect domains like appl3.co, paypa1.com, microsoft.net, g00gle.com
+    sender_pattern = r'(?:from|sender|reply-to)[:\s]+[\w\s]+<([^>]+@([^>]+))>'
+    sender_match = re.search(sender_pattern, email_text, re.IGNORECASE)
+    if not sender_match:
+        # Also check bare email addresses
+        sender_match = re.search(r'[\w.]+@([\w.-]+\.(?:co|net|org|io|tk|ru|xyz|ml|ga|cf|gq|pw))', email_text, re.IGNORECASE)
+
+    KNOWN_BRANDS_DOMAINS = {
+        'apple': ['apple.com', 'icloud.com'],
+        'paypal': ['paypal.com'],
+        'microsoft': ['microsoft.com', 'outlook.com', 'live.com'],
+        'google': ['google.com', 'gmail.com'],
+        'amazon': ['amazon.com'],
+        'netflix': ['netflix.com'],
+        'facebook': ['facebook.com', 'meta.com'],
+        'instagram': ['instagram.com'],
+        'twitter': ['twitter.com', 'x.com'],
+        'linkedin': ['linkedin.com'],
+        'dropbox': ['dropbox.com'],
+        'spotify': ['spotify.com'],
+    }
+
+    typosquat_found = False
+    for brand, official_domains in KNOWN_BRANDS_DOMAINS.items():
+        if brand in text_lower:
+            # Check for digit substitutions and typos in any email address in the text
+            email_addresses = re.findall(r'[\w.+-]+@([\w.-]+)', email_text)
+            for addr_domain in email_addresses:
+                addr_domain_lower = addr_domain.lower()
+                # Skip if it's an official domain
+                if any(addr_domain_lower == d or addr_domain_lower.endswith('.' + d) for d in official_domains):
+                    continue
+                # Flag if brand name (with possible digit substitutions) appears in sender domain
+                brand_regex = brand.replace('a', '[a4@]').replace('e', '[e3]').replace('i', '[i1!]').replace('o', '[o0]').replace('s', '[s5$]')
+                if re.search(brand_regex, addr_domain_lower):
+                    features['suspicious_url_count'] = features.get('suspicious_url_count', 0) + 3
+                    indicators.append({
+                        'type': 'spoofed_sender',
+                        'severity': 'critical',
+                        'label': 'Typosquatted Sender Domain',
+                        'detail': f'Sender domain "{addr_domain}" impersonates {brand} using character substitution'
+                    })
+                    highlighted_keywords.append(addr_domain)
+                    typosquat_found = True
+                    break
+        if typosquat_found:
+            break
+
     # ── Grammar & Style Analysis ──────────────────────────
     exclamation_count = email_text.count('!')
-    all_caps_count = len(re.findall(r'\b[A-Z]{3,}\b', email_text))
+    all_caps_count = len(re.findall(r'\b[A-Z]{5,}\b', email_text))  # 5+ chars to avoid brand names like VPN, FBI
     features['exclamation_count'] = exclamation_count
     features['all_caps_count'] = all_caps_count
     
