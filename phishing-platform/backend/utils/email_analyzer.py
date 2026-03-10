@@ -65,6 +65,11 @@ def extract_urls(text):
 
 
 # Free hosting platforms commonly abused for phishing
+URL_SHORTENERS = [
+    'tinyurl.com', 'bit.ly', 'goo.gl', 't.co', 'ow.ly', 'is.gd',
+    'tiny.cc', 'cutt.ly', 'rb.gy', 'shorturl.at', 'tiny.one',
+    'rebrand.ly', 'bl.ink', 'buff.ly', 'v.gd', 'tr.im', 'shorte.st',
+]
 FREE_HOSTING_DOMAINS = [
     'jabry.com', 'freehosting.net', '000webhostapp.com', 'weebly.com',
     'wixsite.com', 'blogspot.com', 'wordpress.com', 'tumblr.com',
@@ -106,7 +111,11 @@ def analyze_url(url):
     for trusted in TRUSTED_DOMAINS:
         if domain == trusted or domain.endswith('.' + trusted):
             return {'url': url, 'domain': domain, 'risk': 0, 'issues': [], 'safe': True, 'https': url.startswith('https://')}
-
+for shortener in URL_SHORTENERS:
+        if domain == shortener or domain.endswith('.' + shortener):
+            issues.append(f'URL shortener ({domain}) hides real destination — common in phishing')
+            risk += 40
+            break
     # Free hosting platforms — commonly abused for phishing pages
     for fh in FREE_HOSTING_DOMAINS:
         if domain == fh or domain.endswith('.' + fh):
