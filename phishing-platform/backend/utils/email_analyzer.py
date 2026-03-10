@@ -116,6 +116,7 @@ for shortener in URL_SHORTENERS:
             issues.append(f'URL shortener ({domain}) hides real destination — common in phishing')
             risk += 40
             break
+
     # Free hosting platforms — commonly abused for phishing pages
     for fh in FREE_HOSTING_DOMAINS:
         if domain == fh or domain.endswith('.' + fh):
