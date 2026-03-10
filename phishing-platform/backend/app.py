@@ -114,6 +114,36 @@ def predict_email(text, features):
         return int(rule_phishing), round(rule_conf, 1), None, False
 
 
+def gemini_analyze_url(url):
+    if not GEMINI_API_KEY:
+        return None, None, None
+    prompt = f"""You are a cybersecurity expert. Analyze this URL and determine if it is phishing/malicious or legitimate.
+
+URL: {url}
+
+Consider: URL shorteners hiding destinations, compromised WordPress sites, suspicious PHP scripts, free hosting abuse, typosquatted domains, suspicious TLDs, IP addresses instead of domains, and any other phishing indicators.
+
+Reply with ONLY a JSON object, no other text, no markdown:
+{{"is_phishing": true or false, "confidence": 0-100, "reasoning": "one sentence explanation"}}"""
+    try:
+        api_url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}'
+        payload = json.dumps({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 150}
+        }).encode('utf-8')
+        req = urllib.request.Request(api_url, data=payload,
+            headers={'Content-Type': 'application/json'}, method='POST')
+        with urllib.request.urlopen(req, timeout=8) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            text = data['candidates'][0]['content']['parts'][0]['text'].strip()
+            text = text.replace('```json', '').replace('```', '').strip()
+            result = json.loads(text)
+            return bool(result.get('is_phishing', False)), float(result.get('confidence', 70)), result.get('reasoning', '')
+    except Exception as e:
+        print(f"Gemini URL error: {e}")
+        return None, None, None
+
+
 def get_scan_id():
     return hashlib.md5(str(time.time()).encode()).hexdigest()[:12].upper()
 
@@ -211,7 +241,27 @@ def scan_links():
         urls = extract_urls(data['text'])
     if not urls:
         return jsonify({'error': 'No URLs provided'}), 400
-    results = [analyze_url(url) for url in urls[:20]]
+    results = []
+    for url in urls[:20]:
+        r = analyze_url(url)
+        # Run Gemini on every URL for extra intelligence
+        ai_phish, ai_conf, ai_reason = gemini_analyze_url(url)
+        if ai_phish is not None:
+            r['ai_checked'] = True
+            r['ai_reasoning'] = ai_reason
+            if ai_phish and ai_conf >= 60:
+                r['safe'] = False
+                r['risk'] = max(r['risk'], int(ai_conf * 0.9))
+                if ai_reason:
+                    r['issues'].append(f'Gemini AI: {ai_reason}')
+                r['ai_flagged'] = True
+            elif not ai_phish and r['risk'] < 40:
+                # AI says safe and low rule risk — keep as safe
+                r['ai_flagged'] = False
+        else:
+            r['ai_checked'] = False
+        results.append(r)
+
     return jsonify({
         'urls_analyzed': len(results),
         'results': results,
