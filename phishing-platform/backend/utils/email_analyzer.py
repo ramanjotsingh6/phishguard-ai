@@ -164,6 +164,28 @@ def analyze_url(url):
             risk += 40
             break
 
+    # Compromised WordPress sites used for phishing
+    if re.search(r'/wp-content/plugins/[^/]+\.php', path, re.IGNORECASE):
+        issues.append('Suspicious WordPress plugin PHP file — likely compromised site used for phishing')
+        risk += 50
+    elif re.search(r'/wp-content/uploads/[^/]+\.(php|html|htm)', path, re.IGNORECASE):
+        issues.append('PHP/HTML file in WordPress uploads — sign of compromised site')
+        risk += 50
+    elif re.search(r'/wp-content/|/wp-admin/|/wp-includes/', path, re.IGNORECASE):
+        if re.search(r'\.(php|html|htm)$', path, re.IGNORECASE):
+            issues.append('Suspicious WordPress path with script — possible compromised site')
+            risk += 35
+
+    # Suspicious standalone PHP scripts (form handlers, mailers)
+    if re.search(r'/(formulario|mailer|send|post|submit|form|process|auth|upload)[^/]*\.php', path, re.IGNORECASE):
+        issues.append('Suspicious PHP script name — common in phishing form handlers')
+        risk += 35
+
+    # Double slashes in path — sign of injected phishing URLs
+    if '//' in path:
+        issues.append('Double slash in URL path — sign of injected or malformed phishing URL')
+        risk += 15
+
     # Long random hex path segments (e.g. /70ffb52d079e55eb0a99bbd77b8fee09/) — phishing obfuscation
     if re.search(r'/[0-9a-f]{16,}/', path):
         issues.append('Obfuscated hex path segment — common phishing obfuscation technique')
